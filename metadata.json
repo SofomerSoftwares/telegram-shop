@@ -1,0 +1,6 @@
+{
+  "name": "Telegram E-commerce Platform",
+  "description": "A full-stack e-commerce website that automatically syncs product data from a Telegram channel, displays products, manages a shopping cart, and sends order notifications back to the seller via Telegram.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,95 @@
+{
+  "entities": {
+    "Setting": {
+      "title": "Setting",
+      "description": "System settings",
+      "type": "object",
+      "properties": {
+        "botToken": { "type": "string" },
+        "channelId": { "type": "string" },
+        "chatId": { "type": "string" },
+        "webhookUrl": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Product catalog item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "price": { "type": "number" },
+        "description": { "type": "string" },
+        "images": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "contactLink": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerName": { "type": "string" },
+        "contactInfo": { "type": "string" },
+        "deliveryAddress": { "type": "string" },
+        "items": { "type": "array" },
+        "totalPrice": { "type": "number" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      }
+    },
+    "WebhookLog": {
+      "title": "WebhookLog",
+      "description": "Incoming webhook call log",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "payload": { "type": "object" },
+        "createdAt": { "type": "string" }
+      }
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Product rating and review",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "userName": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["productId", "rating", "comment", "userName", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/settings": {
+      "schema": "Setting",
+      "description": "Global settings documents"
+    },
+    "/products": {
+      "schema": "Product",
+      "description": "Available products"
+    },
+    "/products/{productId}/reviews": {
+      "schema": "Review",
+      "description": "Reviews for a specific product"
+    },
+    "/orders": {
+      "schema": "Order",
+      "description": "Customer order documents"
+    },
+    "/webhook_logs": {
+      "schema": "WebhookLog",
+      "description": "Log of received webhook events"
+    }
+  }
+}
