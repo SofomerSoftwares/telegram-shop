@@ -6,14 +6,13 @@ service cloud.firestore {
       allow read, write: if true;
     }
     
-    // Allow read/write access to products
-    match /products/{document} {
+    // Allow read/write access to products and its subcollections
+    match /products/{productId} {
       allow read, write: if true;
-    }
-
-    // Allow read/write access to reviews under products
-    match /products/{productId}/reviews/{document} {
-      allow read, write: if true;
+      
+      match /reviews/{reviewId} {
+        allow read, write: if true;
+      }
     }
     
     // Allow read/write access to orders

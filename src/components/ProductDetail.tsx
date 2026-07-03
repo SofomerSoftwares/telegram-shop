@@ -3,6 +3,7 @@ import { Product } from '../types';
 import { ArrowLeft, ShoppingCart, MessageSquare, Check, Tag, Heart } from 'lucide-react';
 import { motion } from 'motion/react';
 import ReviewSection from './ReviewSection';
+import ImageLightbox from './ImageLightbox';
 
 interface ProductDetailProps {
   product: Product;
@@ -15,6 +16,7 @@ interface ProductDetailProps {
 export default function ProductDetail({ product, onBack, onAddToCart, isWishlisted = false, onWishlistToggle }: ProductDetailProps) {
   const [activeImage, setActiveImage] = useState(0);
   const [isAdded, setIsAdded] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   const images = product.images && product.images.length > 0 
     ? product.images 
@@ -45,12 +47,16 @@ export default function ProductDetail({ product, onBack, onAddToCart, isWishlist
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
         {/* Left Side: Images */}
         <div className="flex flex-col space-y-4">
-          <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-gray-50 border border-gray-100">
+          <div 
+            className="relative aspect-square w-full rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 cursor-zoom-in group/image"
+            onClick={() => setIsLightboxOpen(true)}
+            id="detail-main-image-container"
+          >
             <img
               src={images[activeImage]}
               alt={product.title}
               referrerPolicy="no-referrer"
-              className={`w-full h-full object-cover ${isSoldOut ? 'grayscale contrast-75 opacity-80' : ''}`}
+              className={`w-full h-full object-cover transition-transform duration-500 group-hover/image:scale-105 ${isSoldOut ? 'grayscale contrast-75 opacity-80' : ''}`}
               onError={(e) => {
                 (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80';
               }}
@@ -60,6 +66,12 @@ export default function ProductDetail({ product, onBack, onAddToCart, isWishlist
                 Synced from {product.telegramChannel}
               </span>
             )}
+            {/* Click to Zoom Overlay Indicator */}
+            <div className="absolute inset-0 bg-black/10 opacity-0 group-hover/image:opacity-100 transition-opacity flex items-center justify-center">
+              <span className="bg-black/60 text-white text-xs font-semibold px-4 py-2 rounded-xl backdrop-blur-xs flex items-center gap-1.5 shadow-md">
+                Click to expand & zoom
+              </span>
+            </div>
           </div>
 
           {/* Image Thumbnail Selector */}
@@ -197,6 +209,14 @@ export default function ProductDetail({ product, onBack, onAddToCart, isWishlist
       </div>
 
       <ReviewSection productId={product.id} />
+
+      <ImageLightbox
+        images={images}
+        initialIndex={activeImage}
+        isOpen={isLightboxOpen}
+        onClose={() => setIsLightboxOpen(false)}
+        title={product.title}
+      />
     </div>
   );
 }
