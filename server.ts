@@ -134,13 +134,98 @@ async function startServer() {
   });
 
   // 2. Admin Login
-  app.post('/api/admin/login', (req, res) => {
-    const { password } = req.body;
-    if (password === ADMIN_PASSWORD) {
-      const token = jwt.sign({ admin: true }, JWT_SECRET, { expiresIn: '7d' });
-      res.json({ token });
-    } else {
-      res.status(401).json({ error: 'Invalid admin password' });
+  app.post('/api/admin/login', async (req, res) => {
+    try {
+      const { username, password } = req.body;
+
+      if (!password) {
+        res.status(400).json({ error: 'Password is required' });
+        return;
+      }
+
+      // Check fallback admin credential
+      const fallbackMatches = (!username || username === 'admin') && password === ADMIN_PASSWORD;
+      
+      if (fallbackMatches) {
+        const token = jwt.sign({ admin: true, username: 'admin' }, JWT_SECRET, { expiresIn: '7d' });
+        res.json({ token, username: 'admin' });
+        return;
+      }
+
+      // If username is specified, search in DB
+      if (username) {
+        const firestoreDb = getDb();
+        const adminsRef = collection(firestoreDb, 'admins');
+        const q = query(adminsRef, where('username', '==', username.trim().toLowerCase()));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+          const adminDoc = querySnapshot.docs[0];
+          const adminData = adminDoc.data();
+          
+          const crypto = await import('crypto');
+          const hashedInput = crypto.createHash('sha256').update(password).digest('hex');
+
+          if (adminData.passwordHash === hashedInput) {
+            const token = jwt.sign({ admin: true, username: adminData.username }, JWT_SECRET, { expiresIn: '7d' });
+            res.json({ token, username: adminData.username });
+            return;
+          }
+        }
+      }
+
+      res.status(401).json({ error: 'Invalid username or password' });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // 2.5 Admin Register
+  app.post('/api/admin/register', async (req, res) => {
+    try {
+      const { username, password } = req.body;
+
+      if (!username || !password) {
+        res.status(400).json({ error: 'Username and password are required' });
+        return;
+      }
+
+      if (username.trim().length < 3) {
+        res.status(400).json({ error: 'Username must be at least 3 characters' });
+        return;
+      }
+
+      if (password.length < 6) {
+        res.status(400).json({ error: 'Password must be at least 6 characters' });
+        return;
+      }
+
+      const firestoreDb = getDb();
+      const normalizedUsername = username.trim().toLowerCase();
+
+      // Check if username already exists
+      const adminsRef = collection(firestoreDb, 'admins');
+      const q = query(adminsRef, where('username', '==', normalizedUsername));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty || normalizedUsername === 'admin') {
+        res.status(400).json({ error: 'Username is already taken' });
+        return;
+      }
+
+      // Hash password using crypto
+      const crypto = await import('crypto');
+      const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
+
+      await addDoc(adminsRef, {
+        username: normalizedUsername,
+        passwordHash,
+        createdAt: new Date().toISOString()
+      });
+
+      res.json({ success: true, message: 'Registration successful! You can now log in.' });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
   });
 
@@ -499,6 +584,37 @@ ${product.description}
     }
   });
 
+  // 9.5 Admin Update Order Status
+  app.post('/api/admin/orders/:id/status', authenticateAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      const firestoreDb = getDb();
+
+      if (!status || !['pending', 'completed', 'cancelled'].includes(status)) {
+        res.status(400).json({ error: 'Invalid or missing status' });
+        return;
+      }
+
+      const orderRef = doc(firestoreDb, 'orders', id);
+      const orderSnap = await getDoc(orderRef);
+
+      if (!orderSnap.exists()) {
+        res.status(404).json({ error: 'Order not found' });
+        return;
+      }
+
+      await updateDoc(orderRef, {
+        status,
+        updatedAt: new Date().toISOString()
+      });
+
+      res.json({ success: true, id, status });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // 10. Admin Webhook Logs
   app.get('/api/admin/webhook-logs', authenticateAdmin, async (req, res) => {
     try {
@@ -581,7 +697,15 @@ ${items.map((item: any) => `• ${item.title} (x${item.quantity}) - $${(item.pri
             body: JSON.stringify({
               chat_id: chatId,
               text: messageText,
-              parse_mode: 'HTML'
+              parse_mode: 'HTML',
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    { text: '✅ Accept Order', callback_data: `accept_order:${newOrderRef.id}` },
+                    { text: '❌ Cancel Order', callback_data: `cancel_order:${newOrderRef.id}` }
+                  ]
+                ]
+              }
             })
           });
 
@@ -749,6 +873,84 @@ Message text:
         timestamp: new Date().toISOString(),
         type: 'real_webhook'
       });
+
+      // Handle callback query (inline button clicks)
+      if (update.callback_query) {
+        const callbackQuery = update.callback_query;
+        const callbackData = callbackQuery.data || '';
+        
+        // Fetch Bot Token from settings
+        const settingsDocRef = doc(firestoreDb, 'settings', 'telegram_config');
+        const settingsSnap = await getDoc(settingsDocRef);
+        let botToken = process.env.TELEGRAM_BOT_TOKEN || '';
+        if (settingsSnap.exists()) {
+          const data = settingsSnap.data();
+          botToken = data.botToken || botToken;
+        }
+
+        if (callbackData.startsWith('accept_order:') || callbackData.startsWith('cancel_order:')) {
+          const isAccept = callbackData.startsWith('accept_order:');
+          const actionStatus = isAccept ? 'completed' : 'cancelled';
+          const orderId = callbackData.split(':')[1];
+          const orderDocRef = doc(firestoreDb, 'orders', orderId);
+          const orderSnap = await getDoc(orderDocRef);
+
+          if (orderSnap.exists()) {
+            await updateDoc(orderDocRef, {
+              status: actionStatus,
+              updatedAt: new Date().toISOString()
+            });
+
+            if (botToken) {
+              // Answer Callback Query
+              await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  callback_query_id: callbackQuery.id,
+                  text: `Order has been successfully ${isAccept ? 'accepted' : 'cancelled'}!`
+                })
+              }).catch(err => console.error('Error answering callback query:', err));
+
+              // Edit the message text to show status and remove buttons
+              const originalText = callbackQuery.message?.text || '';
+              const statusEmoji = isAccept ? '✅' : '❌';
+              const statusText = isAccept ? 'ACCEPTED & COMPLETED' : 'CANCELLED';
+              const updatedText = `${originalText}\n\n${statusEmoji} <b>Status: ${statusText}</b> (Processed via Telegram)`;
+
+              await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  chat_id: callbackQuery.message.chat.id,
+                  message_id: callbackQuery.message.message_id,
+                  text: updatedText,
+                  parse_mode: 'HTML',
+                  reply_markup: {
+                    inline_keyboard: [] // Removes buttons
+                  }
+                })
+              }).catch(err => console.error('Error editing message text:', err));
+            }
+
+            res.json({ status: 'success', action: actionStatus, orderId });
+            return;
+          } else {
+            if (botToken) {
+              await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  callback_query_id: callbackQuery.id,
+                  text: 'Error: Order not found.'
+                })
+              }).catch(err => console.error(err));
+            }
+            res.json({ status: 'error', reason: 'Order not found' });
+            return;
+          }
+        }
+      }
 
       const channelPost = update.channel_post;
       if (!channelPost) {

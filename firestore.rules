@@ -20,6 +20,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
     
+    // Allow read/write access to admins
+    match /admins/{document} {
+      allow read, write: if true;
+    }
+    
     // Allow read/write access to webhook_logs
     match /webhook_logs/{document} {
       allow read, write: if true;

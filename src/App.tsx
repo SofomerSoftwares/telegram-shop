@@ -178,6 +178,21 @@ export default function App() {
     return ['All', ...Array.from(list).sort()];
   }, [products]);
 
+  // Count products in each category
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { All: products.length };
+    products.forEach((p) => {
+      if (p.category) {
+        const cat = p.category.trim();
+        if (cat) {
+          const formattedCat = cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
+          counts[formattedCat] = (counts[formattedCat] || 0) + 1;
+        }
+      }
+    });
+    return counts;
+  }, [products]);
+
   // Filtered products list by selected category and search query
   const filteredProducts = useMemo(() => {
     let list = products;
@@ -307,6 +322,7 @@ export default function App() {
               <div className="flex items-center space-x-2 overflow-x-auto pb-4 mb-8 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-none" id="categories-filter">
                 {categories.map((category) => {
                   const isActive = selectedCategory.toLowerCase() === category.toLowerCase();
+                  const count = categoryCounts[category] ?? 0;
                   return (
                     <button
                       key={category}
@@ -317,7 +333,7 @@ export default function App() {
                           : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
                       }`}
                     >
-                      {category}
+                      {category} <span className={`text-[10px] ml-1 font-mono font-medium ${isActive ? 'text-indigo-200' : 'text-gray-400'}`}>({count})</span>
                     </button>
                   );
                 })}
