@@ -8,6 +8,7 @@ interface WishlistPageProps {
   onProductClick: (product: Product) => void;
   onViewChange: (view: string) => void;
   onQuickBuy?: (product: Product) => void;
+  onAddToCart?: (product: Product) => void;
 }
 
 export default function WishlistPage({
@@ -16,6 +17,7 @@ export default function WishlistPage({
   onProductClick,
   onViewChange,
   onQuickBuy,
+  onAddToCart,
 }: WishlistPageProps) {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in" id="wishlist-view">
@@ -65,6 +67,7 @@ export default function WishlistPage({
               onWishlistToggle={() => onWishlistToggle(product)}
               onClick={() => onProductClick(product)}
               onQuickBuy={onQuickBuy ? () => onQuickBuy(product) : undefined}
+              onAddToCart={onAddToCart ? () => onAddToCart(product) : undefined}
             />
           ))}
         </div>

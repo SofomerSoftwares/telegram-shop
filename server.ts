@@ -422,6 +422,9 @@ async function startServer() {
         if (productData.stockCount !== undefined) {
           productData.stockCount = Number(productData.stockCount);
         }
+        if (productData.discountedPrice !== undefined) {
+          productData.discountedPrice = (productData.discountedPrice === '' || productData.discountedPrice === null) ? null : Number(productData.discountedPrice);
+        }
         const dataToSave = {
           ...productData,
           updatedAt: now
@@ -435,6 +438,7 @@ async function startServer() {
           title: productData.title,
           description: productData.description,
           price: Number(productData.price) || 0,
+          discountedPrice: (productData.discountedPrice !== undefined && productData.discountedPrice !== '' && productData.discountedPrice !== null) ? Number(productData.discountedPrice) : null,
           images: productData.images || [],
           contactLink: productData.contactLink || '',
           category: productData.category || 'Other',

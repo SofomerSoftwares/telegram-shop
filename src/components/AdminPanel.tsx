@@ -18,6 +18,31 @@ interface AdminPanelProps {
 
 export default function AdminPanel({ currentView, onViewChange, onProductUpdated }: AdminPanelProps) {
   const toast = useToast();
+
+  // Helper to fetch with retry for robustness during server restarts
+  const fetchWithRetry = async (
+    input: RequestInfo | URL,
+    init?: RequestInit,
+    retries = 5,
+    delay = 500
+  ): Promise<Response> => {
+    try {
+      const response = await fetch(input, init);
+      if (response.status === 502 || response.status === 503 || response.status === 504) {
+        if (retries > 0) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          return fetchWithRetry(input, init, retries - 1, delay * 2);
+        }
+      }
+      return response;
+    } catch (error) {
+      if (retries > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return fetchWithRetry(input, init, retries - 1, delay * 2);
+      }
+      throw error;
+    }
+  };
   const [token, setToken] = useState(localStorage.getItem('adminToken') || '');
   const [postingId, setPostingId] = useState<string | null>(null);
   const [password, setPassword] = useState('');
@@ -91,7 +116,7 @@ export default function AdminPanel({ currentView, onViewChange, onProductUpdated
     if (!token) return;
     setCheckingTelegramStatus(true);
     try {
-      const response = await fetch('/api/admin/telegram-status', {
+      const response = await fetchWithRetry('/api/admin/telegram-status', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -183,7 +208,7 @@ export default function AdminPanel({ currentView, onViewChange, onProductUpdated
   const fetchProducts = async () => {
     setLoadingProducts(true);
     try {
-      const response = await fetch('/api/products');
+      const response = await fetchWithRetry('/api/products');
       if (!response.ok) {
         throw new Error('Failed to load products');
       }
@@ -204,7 +229,7 @@ export default function AdminPanel({ currentView, onViewChange, onProductUpdated
   const fetchOrders = async () => {
     setLoadingOrders(true);
     try {
-      const response = await fetch('/api/admin/orders', {
+      const response = await fetchWithRetry('/api/admin/orders', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) {
@@ -227,7 +252,7 @@ export default function AdminPanel({ currentView, onViewChange, onProductUpdated
   const fetchSettings = async () => {
     setLoadingSettings(true);
     try {
-      const response = await fetch('/api/admin/settings', {
+      const response = await fetchWithRetry('/api/admin/settings', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -246,7 +271,7 @@ export default function AdminPanel({ currentView, onViewChange, onProductUpdated
 
   const fetchWebhookLogs = async () => {
     try {
-      const response = await fetch('/api/admin/webhook-logs', {
+      const response = await fetchWithRetry('/api/admin/webhook-logs', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) {
@@ -706,10 +731,10 @@ Rare 1987 vintage keyboard in pristine mechanical condition. Includes the origin
       {/* Tabs Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Sidebar Menu */}
-        <div className="lg:col-span-3 flex flex-col space-y-2">
+        <div className="lg:col-span-3 flex flex-row lg:flex-col overflow-x-auto lg:overflow-visible pb-2.5 lg:pb-0 gap-2 lg:space-y-2 flex-shrink-0 scrollbar-none" id="admin-tabs-nav">
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`flex items-center space-x-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+            className={`flex items-center space-x-2 lg:space-x-2.5 px-3.5 py-2.5 lg:px-4 lg:py-3 rounded-xl text-xs lg:text-sm font-semibold transition-all flex-shrink-0 ${
               activeTab === 'analytics'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -721,7 +746,7 @@ Rare 1987 vintage keyboard in pristine mechanical condition. Includes the origin
 
           <button
             onClick={() => setActiveTab('products')}
-            className={`flex items-center space-x-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+            className={`flex items-center space-x-2 lg:space-x-2.5 px-3.5 py-2.5 lg:px-4 lg:py-3 rounded-xl text-xs lg:text-sm font-semibold transition-all flex-shrink-0 ${
               activeTab === 'products'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -733,7 +758,7 @@ Rare 1987 vintage keyboard in pristine mechanical condition. Includes the origin
 
           <button
             onClick={() => setActiveTab('orders')}
-            className={`flex items-center space-x-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+            className={`flex items-center space-x-2 lg:space-x-2.5 px-3.5 py-2.5 lg:px-4 lg:py-3 rounded-xl text-xs lg:text-sm font-semibold transition-all flex-shrink-0 ${
               activeTab === 'orders'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -745,7 +770,7 @@ Rare 1987 vintage keyboard in pristine mechanical condition. Includes the origin
 
           <button
             onClick={() => setActiveTab('settings')}
-            className={`flex items-center space-x-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+            className={`flex items-center space-x-2 lg:space-x-2.5 px-3.5 py-2.5 lg:px-4 lg:py-3 rounded-xl text-xs lg:text-sm font-semibold transition-all flex-shrink-0 ${
               activeTab === 'settings'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -757,7 +782,7 @@ Rare 1987 vintage keyboard in pristine mechanical condition. Includes the origin
 
           <button
             onClick={() => setActiveTab('simulator')}
-            className={`flex items-center space-x-2.5 px-4 py-3 rounded-xl text-sm font-semibold border transition-all ${
+            className={`flex items-center space-x-2 lg:space-x-2.5 px-3.5 py-2.5 lg:px-4 lg:py-3 rounded-xl text-xs lg:text-sm font-semibold border transition-all flex-shrink-0 ${
               activeTab === 'simulator'
                 ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
                 : 'border-transparent text-amber-600 bg-amber-50 hover:bg-amber-100'
@@ -1025,7 +1050,15 @@ Rare 1987 vintage keyboard in pristine mechanical condition. Includes the origin
                       <div className="p-4 flex-grow flex flex-col justify-between">
                         <div>
                           <h4 className="font-sans font-bold text-gray-900 text-sm line-clamp-1">{p.title}</h4>
-                          <span className="text-xs text-indigo-600 font-extrabold font-display block mt-1">${Number(p.price).toFixed(2)}</span>
+                          {p.discountedPrice !== undefined && p.discountedPrice > 0 && p.discountedPrice < p.price ? (
+                            <div className="flex items-center space-x-1.5 mt-1">
+                              <span className="text-xs text-rose-600 font-extrabold font-display">${Number(p.discountedPrice).toFixed(2)}</span>
+                              <span className="text-xxs text-gray-400 line-through font-display">${Number(p.price).toFixed(2)}</span>
+                              <span className="bg-rose-50 text-rose-600 text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider">Sale</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-indigo-600 font-extrabold font-display block mt-1">${Number(p.price).toFixed(2)}</span>
+                          )}
                           <p className="text-gray-500 text-xs line-clamp-2 mt-1.5 leading-relaxed">{p.description}</p>
                         </div>
                         <div className="mt-4 pt-3 border-t border-gray-50 flex space-x-2">
@@ -1542,8 +1575,8 @@ Rare 1987 vintage keyboard in pristine mechanical condition. Includes the origin
               </h3>
 
               <form onSubmit={handleSaveProduct} className="space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
+                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="sm:col-span-1">
                     <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Product Title</label>
                     <input
                       type="text"
@@ -1554,13 +1587,24 @@ Rare 1987 vintage keyboard in pristine mechanical condition. Includes the origin
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Product Price ($)</label>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Original Price ($)</label>
                     <input
                       type="number"
                       step="0.01"
                       value={editingProduct.price || ''}
                       onChange={(e) => setEditingProduct({ ...editingProduct, price: parseFloat(e.target.value) || 0 })}
                       required
+                      className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Sale Price ($) <span className="text-gray-400 font-normal">(Opt)</span></label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="No discount"
+                      value={editingProduct.discountedPrice || ''}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, discountedPrice: e.target.value === '' ? undefined : parseFloat(e.target.value) })}
                       className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none"
                     />
                   </div>

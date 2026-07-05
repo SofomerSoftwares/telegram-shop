@@ -4,6 +4,7 @@ import { ArrowLeft, ShoppingCart, MessageSquare, Check, Tag, Heart } from 'lucid
 import { motion } from 'motion/react';
 import ReviewSection from './ReviewSection';
 import ImageLightbox from './ImageLightbox';
+import { useTranslation } from '../lib/i18n';
 
 interface ProductDetailProps {
   product: Product;
@@ -14,6 +15,7 @@ interface ProductDetailProps {
 }
 
 export default function ProductDetail({ product, onBack, onAddToCart, isWishlisted = false, onWishlistToggle }: ProductDetailProps) {
+  const { t } = useTranslation();
   const [activeImage, setActiveImage] = useState(0);
   const [isAdded, setIsAdded] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -31,6 +33,8 @@ export default function ProductDetail({ product, onBack, onAddToCart, isWishlist
   };
 
   const isSoldOut = product.stockCount !== undefined && product.stockCount === 0;
+  const isLowStock = product.stockCount !== undefined && product.stockCount > 0 && product.stockCount <= 5;
+  const hasDiscount = product.discountedPrice !== undefined && product.discountedPrice > 0 && product.discountedPrice < product.price;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" id="product-detail-view">
@@ -41,7 +45,7 @@ export default function ProductDetail({ product, onBack, onAddToCart, isWishlist
         id="detail-back-button"
       >
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-        <span>Back to Products</span>
+        <span>{t('backToCatalog')}</span>
       </button>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
@@ -63,13 +67,13 @@ export default function ProductDetail({ product, onBack, onAddToCart, isWishlist
             />
             {product.telegramChannel && (
               <span className="absolute top-4 left-4 bg-indigo-600/90 text-white font-mono text-xs tracking-wider px-3 py-1 rounded-full shadow-sm backdrop-blur-sm">
-                Synced from {product.telegramChannel}
+                {t('syncedFrom')} {product.telegramChannel}
               </span>
             )}
             {/* Click to Zoom Overlay Indicator */}
             <div className="absolute inset-0 bg-black/10 opacity-0 group-hover/image:opacity-100 transition-opacity flex items-center justify-center">
               <span className="bg-black/60 text-white text-xs font-semibold px-4 py-2 rounded-xl backdrop-blur-xs flex items-center gap-1.5 shadow-md">
-                Click to expand & zoom
+                {t('clickToZoom')}
               </span>
             </div>
           </div>
@@ -99,7 +103,7 @@ export default function ProductDetail({ product, onBack, onAddToCart, isWishlist
             <div className="flex flex-wrap gap-2 items-center mb-3">
               <div className="flex items-center space-x-1.5 text-indigo-600 text-xs font-bold tracking-wider uppercase">
                 <Tag className="w-3.5 h-3.5" />
-                <span>Verified Telegram Post</span>
+                <span>{t('verifiedTelegramPost')}</span>
               </div>
               {product.category && (
                 <span className="bg-indigo-50 text-indigo-700 text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-indigo-100 uppercase tracking-wider">
@@ -114,28 +118,50 @@ export default function ProductDetail({ product, onBack, onAddToCart, isWishlist
 
             {/* Price & Stock info row */}
             <div className="mt-4 flex flex-wrap gap-3 items-center">
-              <div className="inline-flex items-center bg-indigo-50 px-4 py-2 rounded-2xl border border-indigo-100">
-                <span className="font-display font-extrabold text-2xl text-indigo-700">
-                  ${Number(product.price).toFixed(2)}
-                </span>
-              </div>
+              {hasDiscount ? (
+                <>
+                  <div className="inline-flex items-center bg-rose-50 px-4 py-2 rounded-2xl border border-rose-100">
+                    <span className="font-display font-extrabold text-2xl text-rose-600">
+                      ${Number(product.discountedPrice).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="inline-flex items-center bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100 line-through text-gray-400 font-display font-semibold text-sm">
+                    ${Number(product.price).toFixed(2)}
+                  </div>
+                  <span className="bg-rose-600 text-white font-sans text-xs font-extrabold uppercase tracking-wider px-3 py-1.5 rounded-xl shadow-sm flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                    <span>{t('sale')}</span>
+                  </span>
+                </>
+              ) : (
+                <div className="inline-flex items-center bg-indigo-50 px-4 py-2 rounded-2xl border border-indigo-100">
+                  <span className="font-display font-extrabold text-2xl text-indigo-700">
+                    ${Number(product.price).toFixed(2)}
+                  </span>
+                </div>
+              )}
 
               {/* Stock status badge */}
               {isSoldOut ? (
                 <span className="bg-red-50 text-red-700 text-xs font-bold px-3 py-1.5 rounded-xl border border-red-100 uppercase tracking-wider flex items-center gap-1.5 shadow-xs">
                   <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                  <span>Sold Out</span>
+                  <span>{t('soldOut')}</span>
+                </span>
+              ) : isLowStock ? (
+                <span className="bg-amber-50 text-amber-700 text-xs font-bold px-3 py-1.5 rounded-xl border border-amber-200 uppercase tracking-wider flex items-center gap-1.5 shadow-xs">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  <span>{t('lowStock')} {product.stockCount !== undefined ? `(${product.stockCount} left)` : ''}</span>
                 </span>
               ) : (
                 <span className="bg-emerald-50 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-xl border border-emerald-100 uppercase tracking-wider flex items-center gap-1.5 shadow-xs">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>In Stock {product.stockCount !== undefined ? `(${product.stockCount} left)` : ''}</span>
+                  <span>{t('inStock')} {product.stockCount !== undefined ? `(${product.stockCount} left)` : ''}</span>
                 </span>
               )}
             </div>
 
             <div className="mt-8 border-t border-gray-100 pt-6">
-              <h2 className="font-sans font-semibold text-gray-900 text-lg mb-3">Description</h2>
+              <h2 className="font-sans font-semibold text-gray-900 text-lg mb-3">{t('description')}</h2>
               <div className="text-gray-600 space-y-4 leading-relaxed whitespace-pre-line text-sm sm:text-base">
                 {product.description || 'No description available for this product.'}
               </div>
@@ -153,7 +179,7 @@ export default function ProductDetail({ product, onBack, onAddToCart, isWishlist
                 id="telegram-contact-link"
               >
                 <MessageSquare className="w-5 h-5 text-sky-500" />
-                <span>Message Seller on Telegram</span>
+                <span>{t('messageSeller')}</span>
               </a>
             )}
 
@@ -174,17 +200,17 @@ export default function ProductDetail({ product, onBack, onAddToCart, isWishlist
               >
                 {isSoldOut ? (
                   <>
-                    <span>Sold Out</span>
+                    <span>{t('soldOut')}</span>
                   </>
                 ) : isAdded ? (
                   <>
                     <Check className="w-5 h-5 animate-scale" />
-                    <span>Added to Cart!</span>
+                    <span>{t('addedToCartExcl')}</span>
                   </>
                 ) : (
                   <>
                     <ShoppingCart className="w-5 h-5" />
-                    <span>Add to Shopping Cart</span>
+                    <span>{t('addtoShoppingCart')}</span>
                   </>
                 )}
               </motion.button>

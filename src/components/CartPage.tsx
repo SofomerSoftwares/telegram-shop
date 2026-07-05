@@ -1,6 +1,7 @@
-import { CartItem } from '../types';
+import { CartItem, Product } from '../types';
 import { ArrowLeft, Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useTranslation } from '../lib/i18n';
 
 interface CartPageProps {
   cartItems: CartItem[];
@@ -17,7 +18,14 @@ export default function CartPage({
   onClearCart, 
   onViewChange 
 }: CartPageProps) {
-  const totalPrice = cartItems.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
+  const { t } = useTranslation();
+  const getItemPrice = (product: Product) => {
+    return product.discountedPrice !== undefined && product.discountedPrice > 0 && product.discountedPrice < product.price
+      ? product.discountedPrice
+      : product.price;
+  };
+
+  const totalPrice = cartItems.reduce((acc, item) => acc + (getItemPrice(item.product) * item.quantity), 0);
 
   if (cartItems.length === 0) {
     return (
@@ -25,16 +33,16 @@ export default function CartPage({
         <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center mx-auto mb-6 text-gray-400">
           <ShoppingBag className="w-10 h-10" />
         </div>
-        <h2 className="font-display font-bold text-2xl text-gray-900">Your shopping cart is empty</h2>
+        <h2 className="font-display font-bold text-2xl text-gray-900">{t('emptyCart')}</h2>
         <p className="text-gray-500 mt-2 max-w-sm mx-auto text-sm">
-          Browse our catalogue synced directly from Telegram channels to find amazing products!
+          {t('emptyCartDesc')}
         </p>
         <button
           onClick={() => onViewChange('products')}
           className="mt-8 inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-xl shadow-md shadow-indigo-100 transition-colors cursor-pointer"
           id="cart-empty-browse-button"
         >
-          <span>Start Browsing</span>
+          <span>{t('startBrowsing')}</span>
         </button>
       </div>
     );
@@ -45,8 +53,8 @@ export default function CartPage({
       {/* Header */}
       <div className="flex justify-between items-center mb-8 border-b border-gray-100 pb-5">
         <div>
-          <h1 className="font-display font-bold text-3xl text-gray-900 tracking-tight">Shopping Cart</h1>
-          <p className="text-gray-500 text-sm mt-1">Review the items you want to order</p>
+          <h1 className="font-display font-bold text-3xl text-gray-900 tracking-tight">{t('yourCart')}</h1>
+          <p className="text-gray-500 text-sm mt-1">{t('cartReviewDesc')}</p>
         </div>
         <button
           onClick={onClearCart}
@@ -54,7 +62,7 @@ export default function CartPage({
           id="clear-cart-button"
         >
           <Trash2 className="w-3.5 h-3.5" />
-          <span>Clear All</span>
+          <span>{t('clearAll')}</span>
         </button>
       </div>
 
@@ -70,25 +78,38 @@ export default function CartPage({
             return (
               <div 
                 key={product.id}
-                className="flex items-center space-x-4 bg-white border border-gray-100 p-4 rounded-2xl shadow-sm"
+                className="flex flex-col sm:flex-row sm:items-center bg-white border border-gray-100 p-4 rounded-2xl shadow-sm gap-4"
                 id={`cart-item-${product.id}`}
               >
-                {/* Product Image */}
-                <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0 border border-gray-100">
-                  <img src={itemImage} alt={product.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                {/* Product Image and Title wrapper */}
+                <div className="flex items-center space-x-4 flex-grow min-w-0">
+                  {/* Product Image */}
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0 border border-gray-100">
+                    <img src={itemImage} alt={product.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  </div>
+
+                  {/* Details */}
+                  <div className="flex-grow min-w-0">
+                    <h3 className="font-sans font-semibold text-gray-900 text-sm sm:text-base line-clamp-1">
+                      {product.title}
+                    </h3>
+                    <div className="flex items-center space-x-1.5 mt-0.5">
+                      <p className="text-gray-900 text-xs sm:text-sm font-bold">
+                        ${Number(getItemPrice(product)).toFixed(2)} {t('each')}
+                      </p>
+                      {product.discountedPrice !== undefined && product.discountedPrice > 0 && product.discountedPrice < product.price && (
+                        <p className="text-gray-400 text-xxs sm:text-xs line-through">
+                          ${Number(product.price).toFixed(2)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
-                {/* Details */}
-                <div className="flex-grow min-w-0">
-                  <h3 className="font-sans font-semibold text-gray-900 text-sm sm:text-base line-clamp-1">
-                    {product.title}
-                  </h3>
-                  <p className="text-gray-500 text-xs sm:text-sm font-medium mt-0.5">
-                    ${Number(product.price).toFixed(2)} each
-                  </p>
-                  
+                {/* Bottom row for quantity and total price on mobile, right-aligned on desktop */}
+                <div className="flex items-center justify-between sm:justify-end sm:space-x-6 border-t sm:border-t-0 border-gray-100 pt-3 sm:pt-0">
                   {/* Quantity adjustment & Delete */}
-                  <div className="flex items-center justify-between mt-3">
+                  <div className="flex items-center space-x-4">
                     <div className="flex items-center space-x-1 border border-gray-100 rounded-lg p-0.5 bg-gray-50">
                       <button
                         onClick={() => onUpdateQuantity(product.id, item.quantity - 1)}
@@ -111,19 +132,20 @@ export default function CartPage({
 
                     <button
                       onClick={() => onRemoveItem(product.id)}
-                      className="text-red-400 hover:text-red-600 p-1 rounded-lg hover:bg-red-50 transition-colors"
+                      className="text-red-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
                       id={`remove-item-${product.id}`}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                </div>
 
-                {/* Total Item Price */}
-                <div className="text-right flex-shrink-0 pl-2">
-                  <span className="font-display font-bold text-sm sm:text-base text-gray-900 block">
-                    ${(product.price * item.quantity).toFixed(2)}
-                  </span>
+                  {/* Total Item Price */}
+                  <div className="text-right flex-shrink-0">
+                    <span className="text-gray-400 sm:hidden inline-block mr-1 text-xs font-medium">Subtotal:</span>
+                    <span className="font-display font-bold text-sm sm:text-base text-gray-900 inline-block sm:block">
+                      ${(getItemPrice(product) * item.quantity).toFixed(2)}
+                    </span>
+                  </div>
                 </div>
               </div>
             );
@@ -132,21 +154,21 @@ export default function CartPage({
 
         {/* Cart Summary */}
         <div className="bg-gray-50 rounded-3xl p-6 border border-gray-100 h-fit" id="cart-summary-panel">
-          <h2 className="font-display font-bold text-lg text-gray-900 mb-4">Order Summary</h2>
+          <h2 className="font-display font-bold text-lg text-gray-900 mb-4">{t('orderSummary')}</h2>
           
           <div className="space-y-3 pb-4 border-b border-gray-200/50 text-sm">
             <div className="flex justify-between text-gray-500">
-              <span>Subtotal</span>
+              <span>{t('subtotal')}</span>
               <span className="font-sans font-semibold text-gray-900">${totalPrice.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-gray-500">
-              <span>Shipping</span>
-              <span className="text-emerald-600 font-semibold uppercase text-xs">Free Delivery</span>
+              <span>{t('shipping')}</span>
+              <span className="text-emerald-600 font-semibold uppercase text-xs">{t('freeDelivery')}</span>
             </div>
           </div>
 
           <div className="flex justify-between items-center py-4 text-base font-bold text-gray-900">
-            <span>Total Price</span>
+            <span>{t('totalPrice')}</span>
             <span className="font-display text-xl text-indigo-600">${totalPrice.toFixed(2)}</span>
           </div>
 
@@ -156,7 +178,7 @@ export default function CartPage({
             className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3.5 rounded-2xl flex items-center justify-center space-x-2 shadow-lg shadow-indigo-100 transition-colors cursor-pointer text-sm sm:text-base"
             id="cart-checkout-button"
           >
-            <span>Proceed to Checkout</span>
+            <span>{t('proceedToCheckout')}</span>
             <ArrowRight className="w-4 h-4" />
           </motion.button>
 
@@ -165,7 +187,7 @@ export default function CartPage({
             className="w-full mt-3 text-center text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors py-2"
             id="continue-shopping-button"
           >
-            Continue Shopping
+            {t('continueShopping')}
           </button>
         </div>
       </div>

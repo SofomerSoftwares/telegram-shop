@@ -1,8 +1,9 @@
 import { useState, FormEvent } from 'react';
-import { CartItem } from '../types';
+import { CartItem, Product } from '../types';
 import { ArrowLeft, ShoppingBag, Send, CheckCircle, AlertTriangle, ExternalLink } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useToast } from './Toast';
+import { useTranslation } from '../lib/i18n';
 
 interface CheckoutPageProps {
   cartItems: CartItem[];
@@ -12,6 +13,7 @@ interface CheckoutPageProps {
 
 export default function CheckoutPage({ cartItems, onOrderSuccess, onViewChange }: CheckoutPageProps) {
   const toast = useToast();
+  const { t } = useTranslation();
   const [customerName, setCustomerName] = useState('');
   const [contactInfo, setContactInfo] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -22,14 +24,20 @@ export default function CheckoutPage({ cartItems, onOrderSuccess, onViewChange }
   const [orderId, setOrderId] = useState('');
   const [notificationSent, setNotificationSent] = useState(false);
 
-  const totalPrice = cartItems.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
+  const getItemPrice = (product: Product) => {
+    return product.discountedPrice !== undefined && product.discountedPrice > 0 && product.discountedPrice < product.price
+      ? product.discountedPrice
+      : product.price;
+  };
+
+  const totalPrice = cartItems.reduce((acc, item) => acc + (getItemPrice(item.product) * item.quantity), 0);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
 
     if (!customerName.trim() || !contactInfo.trim() || !deliveryAddress.trim()) {
-      setError('Please fill out all the fields in the form.');
+      setError(t('fillRequired'));
       return;
     }
 
@@ -38,7 +46,7 @@ export default function CheckoutPage({ cartItems, onOrderSuccess, onViewChange }
     const itemsPayload = cartItems.map(item => ({
       productId: item.product.id,
       title: item.product.title,
-      price: item.product.price,
+      price: getItemPrice(item.product),
       quantity: item.quantity,
       imageUrl: item.product.images?.[0] || ''
     }));
@@ -90,30 +98,30 @@ export default function CheckoutPage({ cartItems, onOrderSuccess, onViewChange }
             <CheckCircle className="w-12 h-12" />
           </div>
 
-          <h1 className="font-display font-bold text-2xl text-gray-900">Order Placed Successfully!</h1>
+          <h1 className="font-display font-bold text-2xl text-gray-900">{t('orderPlacedSuccess')}</h1>
           <p className="text-gray-500 mt-2 text-sm">
-            Thank you for shopping with us. Your order has been securely recorded.
+            {t('orderThankYou')}
           </p>
 
           <div className="my-6 bg-gray-50 rounded-2xl p-4 text-left space-y-2 border border-gray-100 font-mono text-xs text-gray-600">
-            <div><span className="font-semibold text-gray-800">Order ID:</span> #{orderId}</div>
-            <div><span className="font-semibold text-gray-800">Customer:</span> {customerName}</div>
-            <div><span className="font-semibold text-gray-800">Delivery Address:</span> {deliveryAddress}</div>
-            <div><span className="font-semibold text-gray-800">Total Charged:</span> ${totalPrice.toFixed(2)}</div>
+            <div><span className="font-semibold text-gray-800">{t('orderIdLabel')}:</span> #{orderId}</div>
+            <div><span className="font-semibold text-gray-800">{t('customerLabel')}:</span> {customerName}</div>
+            <div><span className="font-semibold text-gray-800">{t('deliveryAddressLabel')}:</span> {deliveryAddress}</div>
+            <div><span className="font-semibold text-gray-800">{t('totalChargedLabel')}:</span> ${totalPrice.toFixed(2)}</div>
           </div>
 
           {notificationSent ? (
             <div className="flex items-center space-x-2 text-emerald-700 bg-emerald-50 px-4 py-3 rounded-xl border border-emerald-100 text-xs sm:text-sm text-left">
               <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-              <span>Seller has been immediately notified via Telegram Bot!</span>
+              <span>{t('immediateNotify')}</span>
             </div>
           ) : (
             <div className="flex items-start space-x-2 text-amber-700 bg-amber-50 px-4 py-3 rounded-xl border border-amber-100 text-xs sm:text-sm text-left">
               <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
               <div>
-                <span className="font-semibold">Order saved, but seller notification failed.</span>
+                <span className="font-semibold">{t('notifyFailed')}</span>
                 <p className="text-[11px] mt-0.5 text-amber-600">
-                  The Telegram Bot token or Admin Chat ID may not be fully configured yet. You can set them up in the Seller Portal.
+                  {t('notifyFailedDesc')}
                 </p>
               </div>
             </div>
@@ -125,14 +133,14 @@ export default function CheckoutPage({ cartItems, onOrderSuccess, onViewChange }
               className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3.5 rounded-2xl transition-all shadow-md shadow-indigo-100 cursor-pointer"
               id="success-home-button"
             >
-              Continue Shopping
+              {t('continueShopping')}
             </button>
             <button
               onClick={() => onViewChange('admin-login')}
               className="w-full text-indigo-600 hover:text-indigo-800 font-semibold py-2.5 rounded-2xl text-xs sm:text-sm transition-colors cursor-pointer"
               id="success-admin-button"
             >
-              Check Seller Portal
+              {t('checkSellerPortal')}
             </button>
           </div>
         </div>
@@ -149,13 +157,13 @@ export default function CheckoutPage({ cartItems, onOrderSuccess, onViewChange }
         id="checkout-back-button"
       >
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-        <span>Back to Shopping Cart</span>
+        <span>{t('yourCart')}</span>
       </button>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         {/* Left Form Column */}
         <div className="lg:col-span-7 bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
-          <h1 className="font-display font-bold text-2xl text-gray-900 mb-6">Delivery & Contact Information</h1>
+          <h1 className="font-display font-bold text-2xl text-gray-900 mb-6">{t('deliveryContactHeader')}</h1>
 
           {error && (
             <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-xl border border-red-100 text-sm" id="checkout-error">
@@ -166,7 +174,7 @@ export default function CheckoutPage({ cartItems, onOrderSuccess, onViewChange }
           <form onSubmit={handleSubmit} className="space-y-6" id="checkout-form">
             <div>
               <label htmlFor="customerName" className="block text-sm font-semibold text-gray-700 mb-2">
-                Full Name
+                {t('fullName')}
               </label>
               <input
                 type="text"
@@ -182,7 +190,7 @@ export default function CheckoutPage({ cartItems, onOrderSuccess, onViewChange }
 
             <div>
               <label htmlFor="contactInfo" className="block text-sm font-semibold text-gray-700 mb-2">
-                Contact Info (Phone / Email / Telegram)
+                {t('contactInfoLabel')}
               </label>
               <input
                 type="text"
@@ -198,7 +206,7 @@ export default function CheckoutPage({ cartItems, onOrderSuccess, onViewChange }
 
             <div>
               <label htmlFor="deliveryAddress" className="block text-sm font-semibold text-gray-700 mb-2">
-                Delivery Address
+                {t('deliveryAddressLabel')}
               </label>
               <textarea
                 id="deliveryAddress"
@@ -224,12 +232,12 @@ export default function CheckoutPage({ cartItems, onOrderSuccess, onViewChange }
               {isSubmitting ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Processing Order...</span>
+                  <span>{t('processingOrder')}</span>
                 </>
               ) : (
                 <>
                   <Send className="w-5 h-5" />
-                  <span>Place Order (${totalPrice.toFixed(2)})</span>
+                  <span>{t('placeOrderBtn')} (${totalPrice.toFixed(2)})</span>
                 </>
               )}
             </motion.button>
@@ -240,7 +248,7 @@ export default function CheckoutPage({ cartItems, onOrderSuccess, onViewChange }
         <div className="lg:col-span-5 bg-gray-50 border border-gray-100 rounded-3xl p-6 h-fit" id="checkout-items-summary">
           <h2 className="font-display font-bold text-lg text-gray-900 mb-4 flex items-center space-x-2">
             <ShoppingBag className="w-4.5 h-4.5 text-indigo-600" />
-            <span>Basket Summary ({cartItems.length} {cartItems.length === 1 ? 'item' : 'items'})</span>
+            <span>{t('basketSummary')} ({cartItems.length} {cartItems.length === 1 ? 'item' : 'items'})</span>
           </h2>
 
           <div className="divide-y divide-gray-200/50 max-h-80 overflow-y-auto mb-6 pr-1">
@@ -250,10 +258,10 @@ export default function CheckoutPage({ cartItems, onOrderSuccess, onViewChange }
                 <div key={product.id} className="py-4 flex items-center justify-between text-sm">
                   <div className="min-w-0 pr-3">
                     <span className="font-semibold text-gray-900 block line-clamp-1">{product.title}</span>
-                    <span className="text-gray-500 text-xs mt-0.5">Qty: {item.quantity} × ${Number(product.price).toFixed(2)}</span>
+                    <span className="text-gray-500 text-xs mt-0.5">Qty: {item.quantity} × ${Number(getItemPrice(product)).toFixed(2)}</span>
                   </div>
                   <span className="font-display font-bold text-gray-900 flex-shrink-0">
-                    ${(product.price * item.quantity).toFixed(2)}
+                    ${(getItemPrice(product) * item.quantity).toFixed(2)}
                   </span>
                 </div>
               );
@@ -262,11 +270,11 @@ export default function CheckoutPage({ cartItems, onOrderSuccess, onViewChange }
 
           <div className="border-t border-gray-200/80 pt-4 space-y-3">
             <div className="flex justify-between text-sm text-gray-500">
-              <span>Delivery</span>
-              <span className="text-emerald-600 font-semibold uppercase text-xs">Free Courier</span>
+              <span>{t('shipping')}</span>
+              <span className="text-emerald-600 font-semibold uppercase text-xs">{t('freeCourier')}</span>
             </div>
             <div className="flex justify-between items-center text-base font-bold text-gray-900 pt-2 border-t border-dashed border-gray-200">
-              <span>Total Price</span>
+              <span>{t('totalPrice')}</span>
               <span className="font-display text-xl text-indigo-600">${totalPrice.toFixed(2)}</span>
             </div>
           </div>

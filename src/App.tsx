@@ -56,12 +56,37 @@ export default function App() {
     localStorage.setItem('telegram_shop_wishlist', JSON.stringify(wishlist));
   }, [wishlist]);
 
+  // Helper to fetch with retry for robustness during server restarts
+  const fetchWithRetry = async (
+    input: RequestInfo | URL,
+    init?: RequestInit,
+    retries = 5,
+    delay = 500
+  ): Promise<Response> => {
+    try {
+      const response = await fetch(input, init);
+      if (response.status === 502 || response.status === 503 || response.status === 504) {
+        if (retries > 0) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          return fetchWithRetry(input, init, retries - 1, delay * 2);
+        }
+      }
+      return response;
+    } catch (error) {
+      if (retries > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return fetchWithRetry(input, init, retries - 1, delay * 2);
+      }
+      throw error;
+    }
+  };
+
   // Fetch all products on initial render and view changes
   const fetchProducts = async () => {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/products');
+      const response = await fetchWithRetry('/api/products');
       if (!response.ok) {
         throw new Error('Failed to load catalog products');
       }
@@ -83,6 +108,21 @@ export default function App() {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  // Deep-linking effect to parse URL parameters and display the selected product details
+  useEffect(() => {
+    if (products.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const prodId = params.get('product') || params.get('productId');
+      if (prodId) {
+        const prod = products.find((p) => p.id === prodId);
+        if (prod) {
+          setSelectedProduct(prod);
+          setCurrentView('product-detail');
+        }
+      }
+    }
+  }, [products]);
 
   // Cart operations
   const handleAddToCart = (product: Product) => {
@@ -393,6 +433,7 @@ export default function App() {
                     isWishlisted={wishlist.includes(product.id)}
                     onWishlistToggle={() => handleWishlistToggle(product)}
                     onQuickBuy={() => handleQuickBuy(product)}
+                    onAddToCart={() => handleAddToCart(product)}
                     onClick={() => {
                       setSelectedProduct(product);
                       handleViewChange('product-detail');
@@ -428,6 +469,7 @@ export default function App() {
             }}
             onViewChange={handleViewChange}
             onQuickBuy={handleQuickBuy}
+            onAddToCart={handleAddToCart}
           />
         );
 
